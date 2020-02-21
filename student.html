@@ -1,0 +1,201 @@
+<!--StAuth10065: I Freny Patel, 000744054 certify that this material is my original work. No other person's work has been used without due acknowledgement. I have not made my work available to anyone else. -->
+
+<html>
+	<head>
+	    <title>Lab 3 - Student</title>
+		<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+	</head>
+	<script src="/socket.io/socket.io.js"></script>
+	<script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+	<script>
+	$(document).ready(function() {
+		$("#waiting").hide();
+		$("#score1").hide();
+		var type;
+		var score = 0;
+		var timer;
+		var matchQue;
+		var matchAns;
+		var mcqQuestion;
+		var mcqAnswers;
+		var mcqOptions;
+		var comulativeScore = 0;
+		var name;
+		var cumScoreArr = [];
+		$("#score").hide();
+		$("#comScore").hide();
+		var socket= io();
+		$("#submitName").click(function(){
+			 name = $("#name").val();
+			$("#nameDiv").hide();
+			$("#waiting").show();
+			socket.on('questions',function(data){
+				cumScoreArr = [];
+				$("#score1").hide();
+				type = data.type;
+				score = data.score;
+				timer = data.timer;
+				$("#comScore").show();
+				$("#score").html('<p class="text-center col-md-12">Question Score: '+score+'</p>');
+				$("#comScore").html('<p class="text-center col-md-12">Total Score: '+comulativeScore+'</p>');
+				$("#score").show();
+				if(type == "match"){
+					$("#waiting").hide();
+					$("#displayQue").show();
+					matchQue = data.questions;
+					matchAns = data.answers;
+					matchDes = data.matchDes;
+					var string = "<p class='h4 text-center col-md-12'>Description : "+matchDes+"</p>";
+					string += '<table class="table table-striped><thead class="thead-dark"></thead><th scope="col-md-6">Column 1</th><th scope="col-md-6">Column 2</th></thead><tbody>';
+					for(var i = 0; i < matchQue.length; i++){
+						string += '<tr><td scope="col-md-6">'+(i+1)+'. '+matchQue[i]+'</td>';
+						string += '<td scope="col-md-6"><select name="answer'+(i+1) +'" class="col-md-6" id="select'+(i+1) +'">';
+						for(var j = 0; j < matchAns.length; j ++){
+							string+='<option value="'+matchAns[j]+'" >'+matchAns[j]+'</option>';
+						}
+						string+= '</select></td></tr>';
+					}
+					string += '</tbody></table><button class="col-md-2 offset-md-5" id="submitMatch" >Submit</button>';
+					$("#displayQue").html(string);
+				}else{
+					$("#waiting").hide();
+					$("#displayQue").show();
+					mcqQuestion = data.question;
+					mcqAnswers = data.answers;
+					mcqOptions = data.options;
+					var string = "<p class='h4 text-center col-md-12'>Question : "+mcqQuestion+"</p>";
+					for(var i = 0; i < mcqOptions.length; i++){
+						string += '<dd class="row col-md-6 offset-md-3">';
+						string += '<input type="checkbox" id="option'+(i+1)+'" name="option'+(i+1)+'" value="option'+(i+1)+'"class="col-md-2">';
+						string +='<label class="col-md-10" for ="option'+(i+1)+'">'+mcqOptions[i]+'</label></dd>';
+					}
+					string += '<button class="col-md-2 offset-md-5" id="submitId" >Submit</button>';
+					$("#displayQue").html(string);
+				}
+				var timer_s = parseInt(timer, 10);
+					setTimeout(countDown,1000);	
+					function countDown(){
+						$("#timer").show();
+						if(timer_s > 0){
+							setTimeout(countDown,1000);
+							$("#timer").html('<p class="h1 text-center"> '+timer_s+' seconds remaning...</p>');
+						}else{
+							$("#timer").hide();
+							$("#displayQue").hide();
+							$("#correctAns").hide();
+							$("#ansStatus").hide();
+							$("#score").hide();
+							$("#comScore").hide();
+							$("#waiting").show();
+							$("#score1").show();
+						}
+						timer_s--;
+					}
+			});
+			
+			return false;
+		});	
+		$('#displayQue').on('click', '#submitId', function () {
+			$("#displayQue").find("#submitId").attr("disabled",true);
+			var checkAns = [];
+			var rightAns = true;
+			for(var i = 0; i < mcqOptions.length; i ++){
+				var optionId = "#option" + (i+1);
+				if($(optionId).is(":checked")){
+					checkAns[i] = true;
+				}else{
+					checkAns[i] = false;
+				}
+			}
+			for(var i = 0; i < mcqOptions.length; i ++){
+				if(mcqAnswers[i] != checkAns[i]){
+					rightAns = false;
+				}
+			}
+			if(rightAns == true){
+				$("#ansStatus").html("<p class='text-success text-center col-md-12 h3'>You Answer is correct</p>");
+				comulativeScore += parseInt(score);
+			}else{
+				$("#ansStatus").html("<p class='text-danger text-center col-md-12 h3'>You Answer is Incorrect</p>");
+			}
+			var correctStr = "<h3 class='col-md-12 text-center'>Correct Answers</h3>";
+			for(var i = 0; i < mcqOptions.length; i++){
+				if(mcqAnswers[i]==true){
+					correctStr += "<p class='col-md-12 text-center'>"+mcqOptions[i]+"</p>";
+				}
+			}
+			$("#correctAns").html(correctStr);
+			$("#correctAns").show();
+			$("#ansStatus").show();
+			socket.emit('response',{score:parseInt(score),name:name,rightAns:rightAns,cumScore:comulativeScore});
+		});
+		
+		$('#displayQue').on('click', '#submitMatch', function() {
+		$("#displayQue").find("#submitMatch").attr("disabled",true);
+			for(var i = 0; i < matchAns.length; i++){
+				var rightAns = true;
+				var ansId = "#select" + (i+1);
+				if(matchAns[i] != ($(ansId).val())){
+					rightAns = false;
+				}
+			}
+			if(rightAns == true){
+				$("#ansStatus").html("<p class='text-success text-center col-md-12 h3'>You Answer is correct</p>");
+				comulativeScore += parseInt(score);
+			}else{
+				$("#ansStatus").html("<p class='text-danger text-center col-md-12 h3'>You Answer is Incorrect</p>");
+			}
+			var correctStr = "<h3 class='col-md-12 text-center'>Correct Answers</h3>";
+			correctStr += '<table class="table table-striped><thead class="thead-dark"></thead><th scope="col-md-6">Column 1</th><th scope="col-md-6">Column 2</th></thead><tbody>';
+			for(var i = 0; i < matchQue.length; i++){
+				correctStr += '<tr><td scope="col-md-6">'+(i+1)+'. '+matchQue[i]+'</td>';
+				correctStr += '<td scope="col-md-6">'+(i+1)+'. '+matchAns[i]+'</td></tr>';
+			}
+			correctStr += '</tbody></table>';
+			$("#correctAns").html(correctStr);
+			$("#correctAns").show();
+			$("#ansStatus").show();
+			socket.emit('response',{score:parseInt(score),name:name,rightAns:rightAns,cumScore:comulativeScore});
+		});
+		
+		socket.on('studentRes',function(data){
+			cumScoreArr.push({'score':data.cumScore, 'name': data.name});
+			cumScoreArr.sort(function(a, b){return a - b});
+			var cumScoreStr = "";
+			for(var i = 0; i < cumScoreArr.length; i++){
+				cumScoreStr += "<p class='col-md-12'>Name: "+cumScoreArr[i].name+" Cumulative Score: "+cumScoreArr[i].score+"</p>"
+			}
+			$("#score1").find("#studentsScore").html(cumScoreStr);
+		});
+		
+	});
+	</script>
+	<body class="container">
+	<div id="timer" class="col-md-12"></div>
+	<div id="score" class="col-md-12 row"></div>
+	<div id="comScore" class="col-md-12 row"></div>
+	<h2 class="col-md-4 offset-md-4" style="margin-bottom:30px;">Student</h2>
+		<div class="col-md-12 row" id="nameDiv">
+			<form action="" class="row col-md-8 offset-md-2 row">
+			<dl class="row col-md-12">
+				<label for="name" class="col-md-4">Your Name:</label>
+				<input type="text" name="name" id="name" class=" col-md-6">
+			</dl>
+			<dl class="row col-md-12">
+				<input type="submit" id="submitName" value="Submit" class="col-md-4 offset-md-4" />
+			</dl>
+			</form>
+		</div>
+		<div id="waiting">
+			<p class="h1 text-center">Waiting for the question...</p>
+		</div>
+		<div id="score1" class="col-md-8 text-center row offset-md-2">
+			<p class="col-md-6">Cumulative Score</p>
+			<p class="col-md-2 row" id="studentsScore"></p>
+		</div>
+		<div id="displayQue" class="col-md-12 row"></div>
+		<div id="ansStatus" class="col-md-12 row"></div>
+		<div id="correctAns" class="col-md-12 row"></div>
+	</body>
+
+</html>

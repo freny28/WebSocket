@@ -1,0 +1,241 @@
+<!--StAuth10065: I Freny Patel, 000744054 certify that this material is my original work. No other person's work has been used without due acknowledgement. I have not made my work available to anyone else. -->
+<html>
+	<head>
+	    <title>Lab 3 - Teacher</title>
+		<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+		<script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+		<script src="/socket.io/socket.io.js"></script>
+		<script>
+			$(document).ready(function() {
+				var answerRecieved = 0;
+				var correctAns = 0;
+				var perCorrectAns = 0;
+				var correctStud = [];
+				var incorrectStud = [];
+				var cumScoreArr = [];
+				$("#rangeSelected").html($("#timerange").val());
+				$("#score1").hide();
+				$("#createNew").hide();
+				var socket_t = io();
+				var socket= io();
+				var option = 3;
+				var match = 3;
+				$("#timerange").click(function(){
+					$("#rangeSelected").html($("#timerange").val());
+				});
+				$("#displayMatch").hide();
+				$("#question").click(function(){
+					var que = $("#question").val();
+					if(que == "match"){
+						$("#displayMcq").hide();
+						$("#displayMatch").show();
+					}else{
+						$("#displayMcq").show();
+						$("#displayMatch").hide();
+					}	
+				});
+				
+				$("#addOption").click(function(){
+					$("#options").append('<dd class="row col-md-12">' +
+						'<input type="checkbox" id="option'+option+'" name="option'+option+'" value="option'+option+'"class="col-md-2">' +
+						'<input type="text" class="col-md-9" id="text'+option+'" name="text'+option+'" required>'+
+						'</dd>');
+					option = option+1;
+				});
+				
+				$("#addMatch").click(function(){
+					$("#matches").append('<dd class="row col-md-12">' + 
+						'<input type="text" class="col-md-6" id="que'+match+'"required > -'+ 
+						'<input type="text" class="col-md-5" id="ans'+match+'" required >' +
+						'</dd>');
+					match = match+1;
+				});
+				
+				$("#submitButton").click(function(){
+					$("#whole").hide();
+					$("#createNew").hide();
+					answerRecieved = 0;
+					correctAns = 0;
+					perCorrectAns = 0;
+					correctStud = [];
+					incorrectStud = [];
+					cumScoreArr = [];
+					var time_range = $("#timerange").val();
+					var score = $("#score").val();
+					if($("#question").val() == "match"){
+						var matchQue = [];
+						var matchAns = [];
+						var matchDes = $("#matchDes").val();
+						for(var i = 0; i < match-1; i++){
+							var quesId = "#que" + (i+1);
+							var ansId = "#ans" + (i+1);
+							matchQue[i] = $(quesId).val(); 
+							matchAns[i] = $(ansId).val();
+						}
+						socket_t.emit('question',{type: "match"});
+						socket_t.emit('matchQuestion',{questions: matchQue, answers: matchAns, score:score, timer:time_range, matchDes:matchDes});
+					}else{
+						var question = $("#mcqQues").val();
+						var mcqOptions = [];
+						var answers = [];
+						for(var i = 0; i< option - 1; i++){
+							var textId = "#text"+ (i+1);
+							var optionId = "#option" + (i+1);
+							mcqOptions[i] = $(textId).val();
+							if($(optionId).is(":checked")){
+								answers[i] = true;
+							}else{
+								answers[i] = false;
+							}
+						}
+						socket_t.emit('question',{type: "mcq"});
+						socket_t.emit('mcqQuestion',{question: question, answers: answers,options: mcqOptions,score:score, timer:time_range});
+					}
+					$("#displayMcq").find("#options").html('<dd class="row col-md-12"><input type="checkbox" id="option1" name="option1" value="option1"class="col-md-2" checked ><input type="text" class="col-md-9" id="text1" name="text1" required></dd><dd class="row col-md-12"><input type="checkbox" id="option2" name="option2" value="option2"class="col-md-2" ><input type="text" class="col-md-9" id="text2" name="text2" required></dd>');
+					$("#displayMatch").find("#matches").html('<dd class="row col-md-12"><input type="text" class="col-md-6" id="que1" required> - <input type="text" class="col-md-5" id="ans1" required></dd><dd class="row col-md-12"><input type="text" class="col-md-6" id="que2" required> - <input type="text" class="col-md-5" id="ans2" required></dd>');
+					$("#displayMcq").find("#mcqQues").val('');
+					$("#score").val(500);
+					$("#matchDes").val('');
+					var timer = parseInt(time_range, 10);
+					setTimeout(countDown,1000);	
+					function countDown(){
+						$("#timer").show();
+						if(timer > 0){
+							setTimeout(countDown,1000);
+							$("#timer").html('<p class="h1 text-center"> '+timer+' seconds remaning...</p>');
+						}else{
+							$("#timer").hide();
+							$("#createNew").show();
+						}
+						timer--;
+					}
+					
+				});
+				socket.on('studentRes',function(data){
+					$("#score1").show();
+					if(data.rightAns == true){
+						correctStud.push(data.name);
+						answerRecieved += 1;
+						correctAns += 1;
+					}else{
+						answerRecieved += 1;
+						incorrectStud.push(data.name);
+					}
+					perCorrectAns = (100*correctAns)/answerRecieved;
+					$("#score1").find("#totalAns").html(answerRecieved);
+					$("#score1").find("#correctAns").html(correctAns);
+					$("#score1").find("#perCorrectAns").html(perCorrectAns);
+					$("#score1").find("#perCorrectAns").html(perCorrectAns);
+					var correctStr = "";
+					for(var i = 0; i < correctStud.length; i++){
+						correctStr+= correctStud[i] + ' ';
+					}
+					$("#score1").find("#correctStud").html(correctStr);
+					var incorrectStr = "";
+					for(var i = 0; i < incorrectStud.length; i++){
+						incorrectStr+= incorrectStud[i] + ' ';
+					}
+					$("#score1").find("#incorrectStud").html(incorrectStr);
+					
+					cumScoreArr.push({'score':data.cumScore, 'name': data.name});
+					cumScoreArr.sort(function(a, b){return a - b});
+					var cumScoreStr = "";
+					for(var i = 0; i < cumScoreArr.length; i++){
+						cumScoreStr += "<p class='col-md-12'>Name: "+cumScoreArr[i].name+" Cumulative Score: "+cumScoreArr[i].score+"</p>"
+					}
+					$("#score1").find("#cumScore").html(cumScoreStr);
+					
+				});
+				$("#createNew").click(function(){
+					$("#score1").hide();
+					$("#whole").show();
+					$("#createNew").hide();
+				});
+				
+			});
+		</script>
+</head>
+	<body class="container">
+	<div id="timer" class="col-md-12"></div>
+	<div id="score1" class="col-md-8 text-center row offset-md-2">
+		<p class="col-md-6 ">Total Number of answer Recieved:</p>
+		<p class="col-md-2" id="totalAns"></p>
+		<p class="col-md-6">Total Number of correct answers recieved</p>
+		<p class="col-md-2" id="correctAns"></p>
+		<p class="col-md-6">Percentage of answers that are correct</p>
+		<p class="col-md-2" id="perCorrectAns"></p>
+		<p class="col-md-6">Students answered correctly</p>
+		<p class="col-md-2" id="correctStud"></p>
+		<p class="col-md-6">Students answered Incorrectly</p>
+		<p class="col-md-2" id="incorrectStud"></p>
+		<p class="col-md-6">Cumulative Score</p>
+		<p class="col-md-2 row" id="cumScore"></p>
+	</div>
+	<button id="createNew" class="col-md-4 offset-md-4">Create Question</button>
+	<div class="col-md-12" id="whole">
+		<h2 class="text-center col-md-12">Teacher - Add Question</h2>
+		<form action="" class="row col-md-8 offset-md-2 row">
+			<div class="row col-md-12">
+				<label for="timerange" class="col-md-4">Set Timer</label>
+				<input type="range" name="timerange" id="timerange" class=" col-md-6" value="10" min="10" max="90" step="5" required>
+				
+				<label id="rangeSelected" value=""class="col-md-2"></label>
+			</div>
+			<div class="row col-md-12">
+				<label for="score" class="col-md-4">Set Score</label>
+				<input type="number" name="score" id="score" value="500" class="col-md-6" required />
+			</div>
+			<div class="row col-md-12" style="margin-bottom:40px;">
+				<label for="question" class="col-md-4">Select Question type:</label>
+				<select name="question" class="col-md-6" id="question">
+					<option value="mcq" >Multiple-Choice</option>
+					<option value="match">Matching</option>
+				</select>
+			</div>
+			<div id="displayMcq" class="row col-md-12">
+			<h4>Multiple choice Question</h4>
+				<dl class="row col-md-12">
+					<label for="mcqQues" class="col-md-4">Question</label>
+					<input type="text" name="mcqQues" id="mcqQues" class="col-md-6" required />
+				</dl>
+				<dl class="row col-md-12">
+					<button id="addOption" class="col-md-4 offset-md-4">Add option</button>
+				</dl>
+				<dl class="row col-md-12" id="options">
+					<dd class="row col-md-12">
+						<input type="checkbox" id="option1" name="option1" value="option1"class="col-md-2" checked >
+						<input type="text" class="col-md-9" id="text1" name="text1" required>
+					</dd>
+					<dd class="row col-md-12">
+						<input type="checkbox" id="option2" name="option2" value="option2"class="col-md-2" >
+						<input type="text" class="col-md-9" id="text2" name="text2" required>
+					</dd>
+				</dl>		
+			</div>
+			<div id="displayMatch"class="row col-md-12">
+				<h4>Matching Question</h4>
+				<dl class="row col-md-12">
+					<label for="matchDes" class="col-md-4">Description</label>
+					<input type="text" name="matchDes" id="matchDes" class="col-md-6" required />
+				</dl>
+				<dl class="row col-md-12">
+					<button id="addMatch" class="col-md-4 offset-md-4">Add Match</button>
+				</dl>
+				<dl class="row col-md-12" id="matches">
+					<dd class="row col-md-12">
+						<input type="text" class="col-md-6" id="que1" required> - 
+						<input type="text" class="col-md-5" id="ans1" required>
+					</dd>
+					<dd class="row col-md-12">
+						<input type="text" class="col-md-6" id="que2" required> - 
+						<input type="text" class="col-md-5" id="ans2" required>
+					</dd>
+				</dl>
+			</div>
+			<div class="row col-md-12">
+				<input type="submit" id="submitButton" value="Send Question" class="col-md-4 offset-md-4" />
+			</div>
+		</form>
+	</div>
+	</body>
+</html>
